@@ -1,0 +1,18 @@
+app_name: pvz_service
+app_port: "8080"
+
+db_config:
+  db_driver: postgresql
+  db_user: postgres
+  db_password: 1234
+  db_host: localhost
+  db_port: "5432"
+  db_name: e2etest
+  db_ssl: disable
+
+auth_config:
+  jwt_signing_key: lsdlmlskndfkjinev
+  
+service_config:
+  hash_salt: avwaepdqwdioqkpf
+  hash_cost: 7

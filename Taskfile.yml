@@ -1,0 +1,102 @@
+version: '3'
+
+env:
+  ENV_FILE: deploy/.env
+  GO_MOD: github.com/senorUVE/pvz_service
+  FULL_SRC_PATH: '{{.GO_MOD}}/cmd'
+  BIN_DIR: bin/
+  BUILD_FLAGS: -ldflags="-s -w"
+  COV_FILE: cov.out
+  HDL_COV_FILE: handler.out
+  CTL_COV_FILE: controller.out
+  RPT_COV_FILE: repository.out
+  AUTH_COV_FILE: auth.out
+  D_COMPOSE_YML_PATH: deploy/docker-compose.yml
+  DOCKERFILE_PATH: deploy/Dockerfile
+  MIGRATION_DIR: migrations/
+
+tasks:
+  default:
+    desc: Run the application
+    cmds:
+      - task: build
+      - ./{{.BIN_DIR}}/
+
+  build:
+    desc: Build binary
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/ {{.FULL_SRC_PATH}}
+
+  coverage:
+    desc: Run all tests with coverage
+    cmds:
+      - go test -coverprofile={{.COV_FILE}} ./internal/...
+      - go tool cover -func={{.COV_FILE}}
+
+  cov-auth:
+    desc: Run auth coverage tests
+    cmds:
+      - go test -coverprofile={{.AUTH_COV_FILE}} ./internal/handler/...
+      - go tool cover -func={{.AUTH_COV_FILE}}
+
+  cov-handler:
+    desc: Run handler coverage tests
+    cmds:
+      - go test -coverprofile={{.HDL_COV_FILE}} ./internal/handler/...
+      - go tool cover -func={{.HDL_COV_FILE}}
+
+  cov-controller:
+    desc: Run controller coverage tests
+    cmds:
+      - go test -coverprofile={{.CTL_COV_FILE}} ./internal/controller/...
+      - go tool cover -func={{.CTL_COV_FILE}}
+
+  cov-repository:
+    desc: Run repository coverage tests
+    cmds:
+      - go test -coverprofile={{.RPT_COV_FILE}} ./internal/repository/...
+      - go tool cover -func={{.RPT_COV_FILE}}
+
+  clean:
+    desc: Clean build artifacts and coverage files
+    cmds:
+      - rm -rf {{.BIN_DIR}}
+      - rm {{.COV_FILE}} {{.HDL_COV_FILE}} {{.CTL_COV_FILE}} {{.RPT_COV_FILE}} {{.AUTH_COV_FILE}}
+      - go clean
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./internal/...
+
+  mod:
+    desc: Tidy Go modules
+    cmds:
+      - go mod tidy
+
+  docker-up:
+    desc: Start Docker containers
+    cmds:
+      - docker compose --env-file {{.ENV_FILE}} -f {{.D_COMPOSE_YML_PATH}} up -d
+
+  docker-down:
+    desc: Stop Docker containers
+    cmds:
+      - docker compose --env-file {{.ENV_FILE}} -f {{.D_COMPOSE_YML_PATH}} down
+
+  docker-buildup:
+    desc: Rebuild and start Docker containers
+    cmds:
+      - docker compose --env-file {{.ENV_FILE}} -f {{.D_COMPOSE_YML_PATH}} up --build -d
+
+  docker-restart:
+    desc: Restart Docker containers
+    cmds:
+      - task: docker-down
+      - task: docker-up
+
+  help:
+    desc: Show help
+    cmds:
+      - task --list-all
