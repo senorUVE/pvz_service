@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -28,8 +29,6 @@ func setupTestServer() (*httptest.Server, func()) {
 	if err != nil {
 		logrus.Fatalf("Failed to load Config: %v", err)
 	}
-
-	logrus.Info("Config loaded successfully")
 
 	db, err := repository.NewRepository(cfg.DBConfig)
 	if err != nil {
@@ -93,47 +92,47 @@ func TestPVZLifecycle(t *testing.T) {
 	defer server.Close()
 	defer cleanup()
 
-	// 1. Регистрация и авторизация пользователей
-	moderToken := getDummyToken(t, server.URL, "moderator")
-	empToken := getDummyToken(t, server.URL, "employee")
+	logrus.SetLevel(logrus.DebugLevel)
+	moderToken := getDummyToken(t, server, "moderator")
+	empToken := getDummyToken(t, server, "employee")
 
-	// 2. Создание ПВЗ
 	pvzID := createPVZ(t, server, moderToken, "Moscow")
+	t.Logf("Created PVZ ID: %s", pvzID)
 
-	// 3. Создание приёмки
 	receptionID := createReception(t, server, empToken, pvzID)
+	t.Logf("Created Reception ID: %s", receptionID)
 
-	// 4. Добавление товаров
 	addProducts(t, server, empToken, pvzID, receptionID, 50)
+	t.Log("Products added")
 
-	// 5. Закрытие приёмки
 	closeReception(t, server, empToken, pvzID)
+	t.Log("Reception closed")
 
-	// 6. Проверка состояния
 	verifyReceptionState(t, server, empToken, pvzID, receptionID)
+	t.Log("Verification complete")
 }
 
-func getDummyToken(t *testing.T, baseURL string, role string) string {
+func getDummyToken(t *testing.T, server *httptest.Server, role string) string {
 	reqBody := dto.DummyLoginRequest{Role: role}
-	body, _ := json.Marshal(reqBody)
+	body, err := json.Marshal(reqBody)
+	require.NoError(t, err)
 
-	resp, err := http.Post(baseURL+"/dummyLogin", "application/json", bytes.NewReader(body))
+	resp, err := http.Post(server.URL+"/api/dummyLogin", "application/json", bytes.NewReader(body))
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var tokenResp struct {
-		Token string `json:"token"`
-	}
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&tokenResp))
+	var token string
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&token))
 
-	return tokenResp.Token
+	return token
 }
 
 func createPVZ(t *testing.T, server *httptest.Server, token string, city string) uuid.UUID {
 	reqBody := dto.PvzCreateRequest{
-		City: city,
+		City:             city,
+		RegistrationDate: time.Now().UTC(),
 	}
 	body, _ := json.Marshal(reqBody)
 
@@ -218,14 +217,14 @@ func verifyReceptionState(t *testing.T, server *httptest.Server, token string, p
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var pvzData []dto.PVZWithReceptions
+	var pvzData dto.PVZWithReceptions
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&pvzData))
 
 	require.NotEmpty(t, pvzData, "PVZ not found")
 
 	// Поиск нужной приёмки
 	var foundReception *dto.ReceptionWithProducts
-	for _, reception := range pvzData[0].Receptions {
+	for _, reception := range pvzData.Receptions {
 		if reception.Reception.Id == receptionID {
 			foundReception = &reception
 			break

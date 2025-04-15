@@ -16,7 +16,7 @@ services:
       db:
           condition: service_healthy
     volumes:
-      - ../test_config.yaml:/root/test_config.yaml
+      - ../configs:/root/configs
     networks:
       - appnetwork
 

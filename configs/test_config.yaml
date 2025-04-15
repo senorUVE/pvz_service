@@ -5,9 +5,9 @@ db_config:
   db_driver: postgresql
   db_user: postgres
   db_password: 1234
-  db_host: localhost
-  db_port: "5431"
-  db_name: mydb
+  db_host: db
+  db_port: "5432"
+  db_name: db_pvz_service
   db_ssl: disable
 
 auth_config:

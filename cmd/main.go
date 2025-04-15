@@ -13,19 +13,21 @@ import (
 	"github.com/senorUVE/pvz_service/internal/handler"
 	"github.com/senorUVE/pvz_service/internal/repository"
 	"github.com/sirupsen/logrus"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
 	logrus.SetFormatter(new(logrus.JSONFormatter))
 
-	cfg, err := config.LoadConfig(".")
+	cfg, err := config.LoadConfig("./configs")
 	if err != nil {
 		logrus.Fatalf("Failed to load Config: %v", err)
 	}
 
 	db, err := repository.NewRepository(cfg.DBConfig)
 	if err != nil {
-		logrus.Fatalf("Failed to init db: %v", err)
+		logrus.Fatalf("Failed to init db blyea: %v", err)
 	}
 	auth := auth.NewAuth(cfg.AuthConfig)
 	srv := controller.NewPvzService(db, auth, cfg.ServiceConfig)

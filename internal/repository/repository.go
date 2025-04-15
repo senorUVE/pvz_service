@@ -9,10 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+
 	"github.com/senorUVE/pvz_service/internal/dto"
 	"github.com/senorUVE/pvz_service/internal/models"
 	"github.com/sirupsen/logrus"
-	//_ "github.com/lib/pq"
+
+	_ "github.com/lib/pq"
 )
 
 type Repository struct {
