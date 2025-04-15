@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/senorUVE/pvz_service/internal/auth"
 	"github.com/senorUVE/pvz_service/internal/dto"
+	"github.com/senorUVE/pvz_service/internal/metrics"
 	"github.com/senorUVE/pvz_service/internal/models"
 	"github.com/senorUVE/pvz_service/internal/repository"
 	"golang.org/x/crypto/bcrypt"
@@ -118,6 +119,8 @@ func (p *PvzService) CreatePVZ(ctx context.Context, request *dto.PvzCreateReques
 		return nil, err
 	}
 
+	metrics.IncPvzCreated()
+
 	return &dto.PvzCreateResponse{
 		Id:               created.Id,
 		RegistrationDate: created.RegistrationDate,
@@ -159,6 +162,8 @@ func (p *PvzService) CreateReception(ctx context.Context, request *dto.CreateRec
 		return nil, err
 	}
 
+	metrics.IncReceptionsCreated()
+
 	return &dto.CreateReceptionResponse{
 		Id:       created.Id,
 		DateTime: created.DateTime,
@@ -197,6 +202,8 @@ func (p *PvzService) AddProduct(ctx context.Context, request *dto.AddProductRequ
 		return nil, err
 	}
 
+	metrics.IncProductsAdded()
+
 	return &dto.AddProductResponse{
 		Id:          created.Id,
 		DateTime:    created.DateTime,
@@ -217,6 +224,9 @@ func (p *PvzService) DeleteLastProduct(ctx context.Context, pvzId uuid.UUID) err
 }
 
 func (p *PvzService) DummyLogin(ctx context.Context, role string) (string, error) {
+	if err := ValidateDummyLogin(role); err != nil {
+		return "", err
+	}
 	dummyUser, err := p.repo.DummyLogin(ctx, role)
 
 	if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	"github.com/senorUVE/pvz_service/internal/auth"
 	"github.com/senorUVE/pvz_service/internal/controller"
 	"github.com/senorUVE/pvz_service/internal/handler"
+	"github.com/senorUVE/pvz_service/internal/metrics"
 	"github.com/senorUVE/pvz_service/internal/repository"
 	"github.com/sirupsen/logrus"
 
@@ -35,6 +37,14 @@ func main() {
 	sh := handler.NewPvzHandler(srv, auth, cfg.AppPort)
 
 	go sh.Start()
+
+	go func() {
+		http.Handle("/metrics", metrics.PrometheusHandler())
+		logrus.Info("Prometheus listening on :9000")
+		if err := http.ListenAndServe(":9000", nil); err != nil {
+			logrus.Fatalf("promethes server error: %v", err)
+		}
+	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)

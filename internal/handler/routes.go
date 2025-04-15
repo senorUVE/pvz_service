@@ -1,8 +1,13 @@
 package handler
 
-import "github.com/senorUVE/pvz_service/internal/models"
+import (
+	"github.com/senorUVE/pvz_service/internal/metrics"
+	"github.com/senorUVE/pvz_service/internal/models"
+)
 
 func RegisterRoutes(h *PvzHandler) {
+	h.e.Use(metrics.PrometheusMiddleware)
+
 	authRouter := h.e.Group("/api")
 	authRouter.POST("/register", h.Register)
 	authRouter.POST("/login", h.Login)

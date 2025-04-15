@@ -10,11 +10,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/labstack/echo/v4"
 	config "github.com/senorUVE/pvz_service/configs"
 	"github.com/senorUVE/pvz_service/internal/auth"
 	"github.com/senorUVE/pvz_service/internal/controller"
 	"github.com/senorUVE/pvz_service/internal/dto"
 	"github.com/senorUVE/pvz_service/internal/handler"
+	"github.com/senorUVE/pvz_service/internal/metrics"
 	"github.com/senorUVE/pvz_service/internal/repository"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -51,6 +53,11 @@ func setupTestServer() (*httptest.Server, func()) {
 	handler.RegisterRoutes(pvzHandler)
 
 	logrus.Info("Routes registered successfully")
+
+	pvzHandler.GetEcho().GET("/metrics", func(c echo.Context) error {
+		metrics.PrometheusHandler().ServeHTTP(c.Response(), c.Request())
+		return nil
+	})
 
 	server := httptest.NewServer(pvzHandler.GetEcho())
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/senorUVE/pvz_service/internal/dto"
+	"github.com/senorUVE/pvz_service/internal/models"
 )
 
 func ValidateAuth(request *dto.AuthRequest) error {
@@ -108,6 +109,13 @@ func ValidateRegisterRequest(request *dto.RegisterRequest) error {
 		return ErrInvalidRole
 	}
 
+	return nil
+}
+
+func ValidateDummyLogin(role string) error {
+	if role != string(models.RoleModerator) && role != string(models.RoleEmployee) {
+		return ErrInvalidRole
+	}
 	return nil
 }
 
