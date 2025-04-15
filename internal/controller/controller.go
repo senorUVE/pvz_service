@@ -102,38 +102,6 @@ func (p *PvzService) AuthUser(ctx context.Context, request *dto.AuthRequest) (*d
 	return &dto.AuthResponse{Token: token}, nil
 }
 
-// func (p *PvzService) CreatePvz(ctx context.Context, )
-
-// func (p *PvzService) Register(ctx context.Context, request *dto.RegisterRequest) (*dto.RegisterResponse, error) {
-// 	if err := ValidateRegisterRequest(request); err != nil {
-// 		return nil, err
-// 	}
-
-// 	hashedPassword, err := bcrypt.GenerateFromPassword(
-// 		[]byte(request.Password+p.cfg.Salt),
-// 		p.cfg.Cost,
-// 	)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	user := &models.User{
-// 		Id:       uuid.New(),
-// 		Email:    request.Email,
-// 		Password: string(hashedPassword),
-// 		Role:     models.Role(request.Role),
-// 	}
-
-// 	if _, err := p.repo.CreateUser(ctx, user); err != nil {
-// 		return nil, err
-// 	}
-
-// 	return &dto.RegisterResponse{
-// 		Id:    user.Id,
-// 		Email: user.Email,
-// 		Role:  string(user.Role),
-// 	}, nil
-// }
-
 func (p *PvzService) CreatePVZ(ctx context.Context, request *dto.PvzCreateRequest) (*dto.PvzCreateResponse, error) {
 	if err := ValidatePvzCreateRequest(request); err != nil {
 		return nil, err
@@ -205,12 +173,7 @@ func (p *PvzService) CloseReception(ctx context.Context, pvzID uuid.UUID) (*dto.
 		return nil, err
 	}
 
-	return &dto.CloseLastReceptionResponse{
-		Id:       reception.Id,
-		DateTime: reception.DateTime,
-		PvzId:    reception.PvzId,
-		Status:   string(reception.Status),
-	}, nil
+	return reception, nil
 }
 
 func (p *PvzService) AddProduct(ctx context.Context, request *dto.AddProductRequest) (*dto.AddProductResponse, error) {

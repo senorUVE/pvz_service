@@ -140,18 +140,18 @@ func (r *Repository) CloseReception(ctx context.Context, pvzId uuid.UUID) (*dto.
 	//currentTime := time.Now().UTC()
 	var closedReception struct {
 		Id       uuid.UUID
-		DateTime time.Time
-		pvzId    uuid.UUID
+		DateTime time.Time `db:"date_time"`
+		PvzId    uuid.UUID `db:"pvz_id"`
 		Status   string
 	}
-	err := r.db.QueryRowxContext(ctx, closeLastReception, pvzId).Scan(&closedReception.Id, &closedReception.DateTime, &closedReception.pvzId, &closedReception.Status)
+	err := r.db.QueryRowxContext(ctx, closeLastReception, pvzId).StructScan(&closedReception)
 	if err != nil {
 		return nil, fmt.Errorf("failed to close reception: %w", err)
 	}
 	return &dto.CloseLastReceptionResponse{
 		Id:       closedReception.Id,
 		DateTime: closedReception.DateTime,
-		PvzId:    closedReception.pvzId,
+		PvzId:    closedReception.PvzId,
 		Status:   closedReception.Status,
 	}, nil
 }

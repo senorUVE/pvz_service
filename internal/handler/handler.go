@@ -106,42 +106,6 @@ func (h *PvzHandler) GetPvz(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{Errors: "Invalid request"})
 	}
 
-	// if startStr := c.QueryParam("startDate"); startStr != "" {
-	// 	startDate, err := time.Parse(time.RFC3339, startStr)
-	// 	if err != nil {
-	// 		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{Errors: "validation failed: invalid startDate"})
-	// 	}
-	// 	req.StartDate = startDate
-	// }
-
-	// if endStr := c.QueryParam("endDate"); endStr != "" {
-	// 	endDate, err := time.Parse(time.RFC3339, endStr)
-	// 	if err != nil {
-	// 		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{Errors: "validation failed: invalid endDate"})
-	// 	}
-	// 	req.EndDate = endDate
-	// }
-
-	// if p := c.QueryParam("page"); p != "" {
-	// 	page, err := strconv.Atoi(p)
-	// 	if err != nil {
-	// 		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{Errors: "validation failed: invalid page"})
-	// 	}
-	// 	req.Page = page
-	// } else {
-	// 	req.Page = 1
-	// }
-
-	// if l := c.QueryParam("limit"); l != "" {
-	// 	limit, err := strconv.Atoi(l)
-	// 	if err != nil {
-	// 		return c.JSON(http.StatusBadRequest, dto.ErrorResponse{Errors: "validation failed: limit must be 1-100"})
-	// 	}
-	// 	req.Limit = limit
-	// } else {
-	// 	req.Limit = 10
-	// }
-
 	response, err := h.pvzService.GetPvz(c.Request().Context(), &req)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Errors: err.Error()})

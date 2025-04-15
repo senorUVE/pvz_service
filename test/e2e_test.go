@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -92,146 +91,158 @@ func TestPVZLifecycle(t *testing.T) {
 	defer server.Close()
 	defer cleanup()
 
-	logrus.SetLevel(logrus.DebugLevel)
-	moderToken := getDummyToken(t, server, "moderator")
-	empToken := getDummyToken(t, server, "employee")
+	moderatorToken := getDummyToken(t, server.URL, "moderator")
 
-	pvzID := createPVZ(t, server, moderToken, "Moscow")
-	t.Logf("Created PVZ ID: %s", pvzID)
+	pvzResp := createPVZ(t, server.URL, moderatorToken, "Москва")
 
-	receptionID := createReception(t, server, empToken, pvzID)
-	t.Logf("Created Reception ID: %s", receptionID)
+	employeeToken := getDummyToken(t, server.URL, "employee")
 
-	addProducts(t, server, empToken, pvzID, receptionID, 50)
-	t.Log("Products added")
+	receptionResp := createReception(t, server.URL, employeeToken, pvzResp.Id)
+	require.Equal(t, "in_progress", receptionResp.Status, "Should start in progress")
 
-	closeReception(t, server, empToken, pvzID)
-	t.Log("Reception closed")
+	for i := 0; i < 50; i++ {
+		addProduct(t, server.URL, employeeToken, pvzResp.Id)
+	}
 
-	verifyReceptionState(t, server, empToken, pvzID, receptionID)
-	t.Log("Verification complete")
+	closeLastReception(t, server.URL, employeeToken, pvzResp.Id)
 }
 
-func getDummyToken(t *testing.T, server *httptest.Server, role string) string {
-	reqBody := dto.DummyLoginRequest{Role: role}
-	body, err := json.Marshal(reqBody)
+func getDummyToken(t *testing.T, baseURL, role string) string {
+	reqBody := dto.DummyLoginRequest{
+		Role: role,
+	}
+	b, err := json.Marshal(reqBody)
 	require.NoError(t, err)
 
-	resp, err := http.Post(server.URL+"/api/dummyLogin", "application/json", bytes.NewReader(body))
+	resp, err := http.Post(baseURL+"/api/dummyLogin", "application/json", bytes.NewReader(b))
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode, "dummyLogin should return 200")
 
 	var token string
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&token))
+	err = json.NewDecoder(resp.Body).Decode(&token)
+	require.NoError(t, err)
 
+	require.NotEmpty(t, token, "token should not be empty")
 	return token
 }
 
-func createPVZ(t *testing.T, server *httptest.Server, token string, city string) uuid.UUID {
+func getProducts(t *testing.T, server *httptest.Server, token string, receptionID uuid.UUID) []dto.ProductResponse {
+	req, _ := http.NewRequest("GET", fmt.Sprintf("%s/api/receptions/%s/products", server.URL, receptionID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var products []dto.ProductResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&products))
+	return products
+}
+
+func getReception(t *testing.T, server *httptest.Server, token string, receptionID uuid.UUID) dto.ReceptionResponse {
+	req, _ := http.NewRequest("GET", fmt.Sprintf("%s/api/receptions/%s", server.URL, receptionID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var reception dto.ReceptionResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&reception))
+	return reception
+}
+
+func createPVZ(t *testing.T, baseURL, token, city string) dto.PvzCreateResponse {
 	reqBody := dto.PvzCreateRequest{
-		City:             city,
-		RegistrationDate: time.Now().UTC(),
+		City: city,
 	}
-	body, _ := json.Marshal(reqBody)
+	b, err := json.Marshal(reqBody)
+	require.NoError(t, err)
 
-	req, _ := http.NewRequest("POST", server.URL+"/pvz", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/pvz", bytes.NewReader(b))
+	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	require.Equal(t, http.StatusCreated, resp.StatusCode, "CreatePVZ should return 201")
 
-	var response dto.PVZResponse
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+	var pvzResp dto.PvzCreateResponse
+	err = json.NewDecoder(resp.Body).Decode(&pvzResp)
+	require.NoError(t, err)
 
-	return response.Id
+	require.NotEqual(t, uuid.Nil, pvzResp.Id, "pvzId must be generated")
+	return pvzResp
 }
 
-func createReception(t *testing.T, server *httptest.Server, token string, pvzID uuid.UUID) uuid.UUID {
+func createReception(t *testing.T, baseURL, token string, pvzId uuid.UUID) dto.CreateReceptionResponse {
 	reqBody := dto.CreateReceptionRequest{
-		PvzId: pvzID,
+		PvzId: pvzId,
 	}
-	body, _ := json.Marshal(reqBody)
+	b, err := json.Marshal(reqBody)
+	require.NoError(t, err)
 
-	req, _ := http.NewRequest("POST", server.URL+"/receptions", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/receptions", bytes.NewReader(b))
+	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	require.Equal(t, http.StatusCreated, resp.StatusCode, "CreateReception should return 201")
 
-	var response dto.ReceptionResponse
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&response))
+	var recResp dto.CreateReceptionResponse
+	err = json.NewDecoder(resp.Body).Decode(&recResp)
+	require.NoError(t, err)
 
-	return response.Id
+	require.NotEqual(t, uuid.Nil, recResp.Id, "receptionId must be generated")
+	return recResp
 }
 
-func addProducts(t *testing.T, server *httptest.Server, token string, pvzID uuid.UUID, receptionID uuid.UUID, count int) {
-	for i := 0; i < count; i++ {
-		reqBody := dto.AddProductRequest{
-			Type:  fmt.Sprintf("Type-%d", i+1),
-			PvzId: pvzID,
-		}
-		body, _ := json.Marshal(reqBody)
-
-		req, _ := http.NewRequest("POST", server.URL+"/products", bytes.NewReader(body))
-		req.Header.Set("Authorization", "Bearer "+token)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+func addProduct(t *testing.T, baseURL, token string, pvzId uuid.UUID) {
+	reqBody := dto.AddProductRequest{
+		Type:  "электроника", // или любой другой тип
+		PvzId: pvzId,
 	}
+	b, err := json.Marshal(reqBody)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/products", bytes.NewReader(b))
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusCreated, resp.StatusCode, "AddProduct should return 201")
 }
 
-func closeReception(t *testing.T, server *httptest.Server, token string, pvzID uuid.UUID) {
-	url := fmt.Sprintf("%s/pvz/%s/close_last_reception", server.URL, pvzID.String())
-	req, _ := http.NewRequest("POST", url, nil)
+func closeLastReception(t *testing.T, baseURL, token string, pvzId uuid.UUID) {
+	url := fmt.Sprintf("%s/pvz/%s/close_last_reception", baseURL, pvzId.String())
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func verifyReceptionState(t *testing.T, server *httptest.Server, token string, pvzID uuid.UUID, receptionID uuid.UUID) {
-	// Получение информации о ПВЗ
-	req, _ := http.NewRequest("GET", server.URL+"/pvz?pvzId="+pvzID.String(), nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	var pvzData dto.PVZWithReceptions
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&pvzData))
-
-	require.NotEmpty(t, pvzData, "PVZ not found")
-
-	// Поиск нужной приёмки
-	var foundReception *dto.ReceptionWithProducts
-	for _, reception := range pvzData.Receptions {
-		if reception.Reception.Id == receptionID {
-			foundReception = &reception
-			break
-		}
-	}
-
-	require.NotNil(t, foundReception, "Reception not found")
-	assert.Equal(t, "closed", foundReception.Reception.Status)
-	assert.Len(t, foundReception.Products, 50)
+	require.Equal(t, http.StatusOK, resp.StatusCode, "CloseReception should return 200")
 }

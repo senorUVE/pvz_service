@@ -264,14 +264,14 @@ func TestRepository_CloseReception(t *testing.T) {
 			pvzId: pvzId,
 			mockExpect: func() {
 				rows := sqlmock.NewRows([]string{"id", "date_time", "pvz_id", "status"}).
-					AddRow(pvzId, testTime, pvzId, "closed")
+					AddRow(pvzId, testTime, pvzId, "close")
 				mock.ExpectQuery(regexp.QuoteMeta(closeLastReception)).
 					WithArgs(pvzId).
 					WillReturnRows(rows)
 			},
 			expectedResp: func(t *testing.T, resp *dto.CloseLastReceptionResponse, err error) {
 				assert.NoError(t, err)
-				assert.Equal(t, "closed", resp.Status)
+				assert.Equal(t, "close", resp.Status)
 				assert.Equal(t, pvzId, resp.PvzId)
 			},
 		},

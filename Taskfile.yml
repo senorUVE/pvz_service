@@ -70,6 +70,11 @@ tasks:
     desc: Run all tests
     cmds:
       - go test ./internal/...
+  
+  end-to-end:
+    desc: Run e2e tests(Test running db required)
+    cmds:
+      - go test ./test
 
   mod:
     desc: Tidy Go modules

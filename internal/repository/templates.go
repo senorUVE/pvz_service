@@ -27,11 +27,15 @@ const (
 	createReception = `INSERT INTO reception (id, date_time, pvz_id, status) VALUES ($1, $2, $3, 'in_progress') RETURNING id, date_time, status`
 
 	closeLastReception = `UPDATE reception 
-                             SET status = 'close' 
-                             WHERE pvz_id = $1 AND status = 'in_progress'
-                             ORDER BY date_time DESC 
-                             LIMIT 1 
-                             RETURNING id, date_time, status`
+                            SET status = 'close' 
+                            WHERE id = (
+								SELECT r.id
+								FROM reception r
+								WHERE r.pvz_id = $1
+								ORDER BY r.date_time DESC
+								LIMIT 1
+							)
+							RETURNING id, date_time, pvz_id, status`
 
 	getActiveReception = `SELECT id, date_time, pvz_id, status FROM reception WHERE pvz_id = $1 AND status = 'in_progress' LIMIT 1`
 
