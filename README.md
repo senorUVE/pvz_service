@@ -58,6 +58,11 @@ task test
 task coverage
 ```
 
+Генерация dto endpoint'ов по openapi схеме:
+```shell
+tasl gen-dto
+```
+
 
 Полный функционал с описанием можно увидеть после ввода команды:
 

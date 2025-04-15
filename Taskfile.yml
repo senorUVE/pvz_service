@@ -102,6 +102,12 @@ tasks:
       - task: docker-down
       - task: docker-up
 
+  gen-dto:
+    desc: Generate dto with openapi scheme
+    cmds:
+      - ogen --clean --package api --target ./api ./api/swagger.yml
+      - find ./api -type f ! -name 'oas_schemas_gen.go' ! -name 'swagger.yml' -delete
+
   help:
     desc: Show help
     cmds:
