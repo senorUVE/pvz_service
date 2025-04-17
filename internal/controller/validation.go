@@ -76,6 +76,14 @@ func ValidateAddProductRequest(request *dto.AddProductRequest) error {
 }
 
 func ValidateGetPvzRequest(request *dto.GetPvzRequest) error {
+
+	if request.Page == 0 {
+		request.Page = 1
+	}
+	if request.Limit == 0 {
+		request.Limit = 10
+	}
+
 	if request.Page < 1 {
 		return ErrInvalidPage
 	}

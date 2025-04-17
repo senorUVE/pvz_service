@@ -11,9 +11,11 @@ import (
 	config "github.com/senorUVE/pvz_service/configs"
 	"github.com/senorUVE/pvz_service/internal/auth"
 	"github.com/senorUVE/pvz_service/internal/controller"
+	"github.com/senorUVE/pvz_service/internal/grpc"
 	"github.com/senorUVE/pvz_service/internal/handler"
 	"github.com/senorUVE/pvz_service/internal/metrics"
 	"github.com/senorUVE/pvz_service/internal/repository"
+	loglib "github.com/senorUVE/pvz_service/log"
 	"github.com/sirupsen/logrus"
 
 	_ "github.com/lib/pq"
@@ -21,6 +23,7 @@ import (
 
 func main() {
 	logrus.SetFormatter(new(logrus.JSONFormatter))
+	loglib.InitLogger(loglib.WithEnv())
 
 	cfg, err := config.LoadConfig("./configs")
 	if err != nil {
@@ -43,6 +46,12 @@ func main() {
 		logrus.Info("Prometheus listening on :9000")
 		if err := http.ListenAndServe(":9000", nil); err != nil {
 			logrus.Fatalf("promethes server error: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := grpc.StartGrpcServer(db); err != nil {
+			logrus.Fatalf("failed to start grpc server: %v", err)
 		}
 	}()
 

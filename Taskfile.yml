@@ -17,6 +17,11 @@ env:
   MIGRATION_DIR: migrations/
 
 tasks:
+  bin-deps:
+    cmds:
+      - GOBIN=$(pwd)/bin go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+      - GOBIN=$(pwd)/bin go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
   default:
     desc: Run the application
     cmds:
@@ -107,6 +112,23 @@ tasks:
     cmds:
       - ogen --clean --package api --target ./api ./api/swagger.yml
       - find ./api -type f ! -name 'oas_schemas_gen.go' ! -name 'swagger.yml' -delete
+
+  grpc:
+    desc: Generate pb
+    vars:
+      proto_files:
+        sh: find proto -type f -name "*.proto" | xargs echo
+
+    cmds:
+      - rm -rf internal/generated
+      - for: { var: proto_files }
+        cmd: >
+          protoc
+          --plugin=protoc-gen-go=$(pwd)/bin/protoc-gen-go
+          --plugin=protoc-gen-go-grpc=$(pwd)/bin/protoc-gen-go-grpc
+          --experimental_allow_proto3_optional
+          --go_out . --go-grpc_out .
+          {{.ITEM}}
 
   help:
     desc: Show help
